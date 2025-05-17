@@ -1,33 +1,44 @@
 import RNFS from 'react-native-fs';
 import XLSX from 'xlsx';
 import { Record } from '../types/Record';
+
+function excelDateToJSDate(serial: number): string {
+    const utc_days = Math.floor(serial - 25569);
+    const utc_value = utc_days * 86400;
+    const date_info = new Date(utc_value * 1000);
+    return date_info.toISOString().split('T')[0]; // YYYY-MM-DD
+}
+
 export async function parseExcelFile(filename: string) {
   const path = `${RNFS.DownloadDirectoryPath}/${filename}`;
   
   try {
-    // Read the file
     const fileData = await RNFS.readFile(path, 'base64');
-    
-    // Parse the workbook directly from base64
     const workbook = XLSX.read(fileData, { type: 'base64' });
-    
-    // Get the first sheet name
+
     const sheetName = workbook.SheetNames[0];
-    
-    // Get the first sheet
     const worksheet = workbook.Sheets[sheetName];
 
-    // Parse the data with headers
     const rawData = XLSX.utils.sheet_to_json(worksheet);
 
-    // If your Excel file doesn't have proper headers,
-    // map the raw data to your expected structure
-    const data = rawData.map((row: any, index: number) => ({
-      sl_no: row.sl_no ?? index + 1,
-      item: row.item ?? '',
-      date: row.date ?? '',
-      description: row.description ?? '',
-    }));
+    const data = rawData.map((row: any, index: number) => {
+      let rawDate = row.date ?? '';
+      let parsedDate = '';
+
+      if (typeof rawDate === 'number') {
+        parsedDate = excelDateToJSDate(rawDate);
+      } else if (typeof rawDate === 'string') {
+        parsedDate = new Date(rawDate).toISOString().split('T')[0];
+      }
+
+      return {
+        sl_no: row.sl_no ?? index + 1,
+        item: row.item ?? '',
+        date: parsedDate,
+        description: row.description ?? '',
+      };
+    });
+
     console.log('Parsed data:', data);
     return data;
   } catch (err) {

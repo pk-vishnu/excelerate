@@ -36,7 +36,9 @@ export default function HomeScreen() {
     }, []);
 
     function handleDelete(sl_no: number) {
-        const updated = records.filter((r) => r.sl_no !== sl_no);
+        const updated = records
+            .filter((r) => r.sl_no !== sl_no)
+            .map((item, index) => ({ ...item, sl_no: index + 1 }));
         setRecords(updated);
         saveExcelFile(updated, 'data.xlsx');
     }
@@ -47,6 +49,7 @@ export default function HomeScreen() {
             <Text style={[styles.headerCell, { flex: 2 }]}>Item</Text>
             <Text style={[styles.headerCell, { flex: 1.5 }]}>Date</Text>
             <Text style={[styles.headerCell, { flex: 3 }]}>Description</Text>
+            <Text style={[styles.headerCell, { flex: 1.5 }]}>Actions</Text>
         </View>
     );
 
@@ -63,11 +66,11 @@ export default function HomeScreen() {
                 <Text style={[styles.tableCell, { flex: 2 }]}>{item.item}</Text>
                 <Text style={[styles.tableCell, { flex: 1.5 }]}>{item.date}</Text>
                 <Text style={[styles.tableCell, { flex: 3 }]}>{item.description}</Text>
-                <TouchableOpacity style={{ flex: 1.5 }} onPress={() => console.log('Edit', item)}>
-                    <Text style={[styles.tableCell, { color: '#BB86FC' }]}>Edit</Text>
+                <TouchableOpacity style={{ flex: 1 }} onPress={() => console.log('Edit', item)}>
+                    <Text style={[styles.tableCell, { color: '#BB86FC' }]}>✏️</Text>
                 </TouchableOpacity>
-                <TouchableOpacity style={{ flex: 2 }} onPress={() => console.log('Delete', item)} onPressIn={() => handleDelete(item.sl_no)}>
-                    <Text style={[styles.tableCell, { color: '#CF6679' }]}>Delete</Text>
+                <TouchableOpacity style={{ flex: 1 }} onPress={() => console.log('Delete', item)} onPressIn={() => handleDelete(item.sl_no)}>
+                    <Text style={[styles.tableCell, { color: '#CF6679' }]}>🗑️</Text>
                 </TouchableOpacity>
             </View>
         ))
