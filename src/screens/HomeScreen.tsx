@@ -1,8 +1,9 @@
 import React, { useEffect, useState } from 'react';
 import { View, Text, StyleSheet, StatusBar, SafeAreaView, ActivityIndicator, ScrollView } from 'react-native';
-import { parseExcelFile } from '../utils/excelParser';
+import { parseExcelFile, saveExcelFile } from '../utils/excelParser';
 import { Record } from '../types/Record';
 import { checkPermission } from '../utils/permissions';
+import { TouchableOpacity } from 'react-native';
 
 export default function HomeScreen() {
     const [records, setRecords] = useState<Record[]>([]);
@@ -34,6 +35,12 @@ export default function HomeScreen() {
         loadData();
     }, []);
 
+    function handleDelete(sl_no: number) {
+        const updated = records.filter((r) => r.sl_no !== sl_no);
+        setRecords(updated);
+        saveExcelFile(updated, 'data.xlsx');
+    }
+
     const renderTableHeader = () => (
         <View style={styles.tableHeader}>
             <Text style={[styles.headerCell, { flex: 0.5 }]}>#</Text>
@@ -56,6 +63,12 @@ export default function HomeScreen() {
                 <Text style={[styles.tableCell, { flex: 2 }]}>{item.item}</Text>
                 <Text style={[styles.tableCell, { flex: 1.5 }]}>{item.date}</Text>
                 <Text style={[styles.tableCell, { flex: 3 }]}>{item.description}</Text>
+                <TouchableOpacity style={{ flex: 1.5 }} onPress={() => console.log('Edit', item)}>
+                    <Text style={[styles.tableCell, { color: '#BB86FC' }]}>Edit</Text>
+                </TouchableOpacity>
+                <TouchableOpacity style={{ flex: 2 }} onPress={() => console.log('Delete', item)} onPressIn={() => handleDelete(item.sl_no)}>
+                    <Text style={[styles.tableCell, { color: '#CF6679' }]}>Delete</Text>
+                </TouchableOpacity>
             </View>
         ))
     );

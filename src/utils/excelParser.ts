@@ -1,6 +1,6 @@
 import RNFS from 'react-native-fs';
 import XLSX from 'xlsx';
-
+import { Record } from '../types/Record';
 export async function parseExcelFile(filename: string) {
   const path = `${RNFS.DownloadDirectoryPath}/${filename}`;
   
@@ -28,10 +28,21 @@ export async function parseExcelFile(filename: string) {
       date: row.date ?? '',
       description: row.description ?? '',
     }));
-    
+    console.log('Parsed data:', data);
     return data;
   } catch (err) {
     console.error('Error reading file:', err);
     return [];
   }
+}
+
+export async function saveExcelFile(data: Record[], filename: string){
+    const ws = XLSX.utils.json_to_sheet(data);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'Sheet1');
+    const wbout = XLSX.write(wb, { type: 'binary', bookType: 'xlsx' });
+
+    const path = `${RNFS.DownloadDirectoryPath}/${filename}`;
+    await RNFS.writeFile(path, wbout, 'ascii');
+    console.log(`Excel file saved to: ${path}`);
 }
