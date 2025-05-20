@@ -1,14 +1,20 @@
 import React, { useEffect, useState } from 'react';
 import { View, Text, StyleSheet, StatusBar, SafeAreaView, ActivityIndicator, ScrollView } from 'react-native';
-import { parseExcelFile, saveExcelFile } from '../utils/excelParser';
+import { parseExcelFile, saveExcelFile, formatDateForDisplay } from '../utils/excelParser';
 import { Record } from '../types/Record';
 import { checkPermission } from '../utils/permissions';
 import { TouchableOpacity } from 'react-native';
+import RecordForm from '../components/RecordForm';
+import { Alert } from 'react-native';
 
 export default function HomeScreen() {
     const [records, setRecords] = useState<Record[]>([]);
+    const [form, setForm] = useState<Partial<Record>>({ item: '', date: '', description: '' });
+    const [editIndex, setEditIndex] = useState<number | null>(null);
     const [loading, setLoading] = useState<boolean>(true);
     const [error, setError] = useState<string | null>(null);
+    const [isFormVisible, setIsFormVisible] = useState(false);
+    const [showUpcomingOnly, setShowUpcomingOnly] = useState(false);
 
     useEffect(() => {
         async function loadData() {
@@ -36,25 +42,156 @@ export default function HomeScreen() {
     }, []);
 
     function handleDelete(sl_no: number) {
-        const updated = records
-            .filter((r) => r.sl_no !== sl_no)
-            .map((item, index) => ({ ...item, sl_no: index + 1 }));
-        setRecords(updated);
-        saveExcelFile(updated, 'data.xlsx');
+        Alert.alert(
+            "Confirm Delete",
+            "Are you sure you want to delete this record?",
+            [
+                {
+                    text: "Cancel",
+                    style: "cancel"
+                },
+                {
+                    text: "Delete",
+                    onPress: () => {
+                        const updated = records
+                            .filter((r) => r.sl_no !== sl_no)
+                            .map((item, index) => ({ ...item, sl_no: index + 1 }));
+                        setRecords(updated);
+                        saveExcelFile(updated, 'data.xlsx');
+                    },
+                    style: "destructive"
+                }
+            ]
+        );
     }
+
+    function handleEdit(recordId: number) {
+        setIsFormVisible(true);
+        const recordToEdit = records.find(r => r.sl_no === recordId);
+        if (!recordToEdit) return;
+        const index = records.findIndex(r => r.sl_no === recordId);
+        setForm({
+            item: recordToEdit.item,
+            date: recordToEdit.date,
+            description: recordToEdit.description
+        });
+        setEditIndex(index);
+    }
+
+    function handleSave() {
+        if (!form.item || !form.date || !form.description) {
+            Alert.alert('All fields are required.');
+            return;
+        }
+
+        const updatedRecords = [...records];
+
+        if (editIndex !== null) {
+            // Edit existing
+            updatedRecords[editIndex] = {
+                ...updatedRecords[editIndex],
+                item: form.item || '',
+                date: form.date || '',
+                description: form.description || '',
+            };
+        } else {
+            // Add new
+            updatedRecords.push({
+                sl_no: updatedRecords.length + 1,
+                item: form.item || '',
+                date: form.date || '',
+                description: form.description || '',
+            });
+        }
+
+        setRecords(updatedRecords);
+        setForm({ item: '', date: '', description: '' });
+        setEditIndex(null);
+
+        // Save to Excel
+        try {
+            saveExcelFile(updatedRecords, 'data.xlsx')
+                .then(() => {
+                    Alert.alert(
+                        editIndex !== null ? "Record Updated" : "Record Added",
+                        editIndex !== null ? "The record has been updated successfully." : "A new record has been added successfully."
+                    );
+                })
+                .catch(error => {
+                    console.error("Error saving file:", error);
+                    Alert.alert("Error", "Failed to save data to Excel.");
+                });
+        } catch (error) {
+            console.error("Error saving file:", error);
+            Alert.alert("Error", "Failed to save data to Excel.");
+        }
+        setIsFormVisible(false);
+    }
+
+    function handleCancel() {
+        setForm({ item: '', date: '', description: '' });
+        setEditIndex(null);
+        setIsFormVisible(false);
+    }
+
+    const renderForm = () => (
+
+        <RecordForm
+            form={form}
+            onChange={setForm}
+            onSave={handleSave}
+            onCancel={handleCancel}
+            isEditing={editIndex !== null}
+        />
+    );
 
     const renderTableHeader = () => (
         <View style={styles.tableHeader}>
-            <Text style={[styles.headerCell, { flex: 0.5 }]}>#</Text>
-            <Text style={[styles.headerCell, { flex: 2 }]}>Item</Text>
-            <Text style={[styles.headerCell, { flex: 1.5 }]}>Date</Text>
+            <Text style={[styles.headerCell, { flex: 1.5 }]}>Item</Text>
+            <Text style={[styles.headerCell, { flex: 2 }]}>Date</Text>
             <Text style={[styles.headerCell, { flex: 3 }]}>Description</Text>
-            <Text style={[styles.headerCell, { flex: 1.5 }]}>Actions</Text>
+            <Text style={[styles.headerCell, { flex: 2 }]}>Actions</Text>
         </View>
     );
 
-    const renderTableRows = () => (
-        records.map((item, index) => (
+    function isUpcomingEvent(dateStr: string): boolean {
+        try {
+            // Parse the record date
+            const recordDate = new Date(dateStr);
+
+            // Get today's date (without time)
+            const today = new Date();
+            today.setHours(0, 0, 0, 0);
+
+            // Calculate date 2 days from now
+            const twoDaysLater = new Date(today);
+            twoDaysLater.setDate(today.getDate() + 3);
+
+            // Check if the record date is between today and 2 days later
+            return recordDate >= today && recordDate <= twoDaysLater;
+        } catch (error) {
+            console.error("Error parsing date:", error);
+            return false;
+        }
+    }
+    const renderTableRows = () => {
+        const displayRecords = showUpcomingOnly
+            ? records.filter(record => isUpcomingEvent(record.date))
+            : records;
+
+        if (displayRecords.length === 0) {
+            return (
+                <View style={styles.centerContainer}>
+                    <Text style={styles.emptyText}>
+                        {showUpcomingOnly
+                            ? "No upcoming events in the next 2 days"
+                            : "No records found"}
+                    </Text>
+                </View>
+            );
+        }
+
+        return displayRecords.map((item, index) => (
             <View
                 key={item.sl_no.toString()}
                 style={[
@@ -62,19 +199,27 @@ export default function HomeScreen() {
                     index % 2 === 0 ? styles.evenRow : styles.oddRow
                 ]}
             >
-                <Text style={[styles.tableCell, { flex: 0.5 }]}>{item.sl_no}</Text>
-                <Text style={[styles.tableCell, { flex: 2 }]}>{item.item}</Text>
-                <Text style={[styles.tableCell, { flex: 1.5 }]}>{item.date}</Text>
+                <Text style={[styles.tableCell, { flex: 1.5 }]}>{item.item}</Text>
+                <Text style={[styles.tableCell, { flex: 2 }]}>{formatDateForDisplay(item.date)}</Text>
                 <Text style={[styles.tableCell, { flex: 3 }]}>{item.description}</Text>
-                <TouchableOpacity style={{ flex: 1 }} onPress={() => console.log('Edit', item)}>
-                    <Text style={[styles.tableCell, { color: '#BB86FC' }]}>✏️</Text>
-                </TouchableOpacity>
-                <TouchableOpacity style={{ flex: 1 }} onPress={() => console.log('Delete', item)} onPressIn={() => handleDelete(item.sl_no)}>
-                    <Text style={[styles.tableCell, { color: '#CF6679' }]}>🗑️</Text>
-                </TouchableOpacity>
+                <View style={[styles.actionContainer, { flex: 2 }]}>
+                    <TouchableOpacity
+                        onPress={() => handleEdit(item.sl_no)}
+                        style={styles.actionButton}
+                    >
+                        <Text style={styles.actionText}>✏️</Text>
+                    </TouchableOpacity>
+
+                    <TouchableOpacity
+                        onPress={() => handleDelete(item.sl_no)}
+                        style={styles.actionButton}
+                    >
+                        <Text style={styles.actionText}>🗑️</Text>
+                    </TouchableOpacity>
+                </View>
             </View>
-        ))
-    );
+        ));
+    };
 
     const renderContent = () => {
         if (loading) {
@@ -94,28 +239,53 @@ export default function HomeScreen() {
             );
         }
 
-        if (records.length === 0) {
-            return (
-                <View style={styles.centerContainer}>
-                    <Text style={styles.emptyText}>No records found</Text>
-                </View>
-            );
-        }
-
         return (
             <ScrollView style={styles.tableContainer}>
-                {renderTableHeader()}
-                {renderTableRows()}
+                <View style={styles.buttonRow}>
+                    <TouchableOpacity
+                        style={styles.addButton}
+                        onPress={toggleForm}
+                    >
+                        <Text style={styles.buttonText}>
+                            {isFormVisible ? "Hide Form" : "Add New Record"}
+                        </Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                        style={[
+                            styles.filterButton,
+                            showUpcomingOnly && styles.filterButtonActive
+                        ]}
+                        onPress={() => setShowUpcomingOnly(!showUpcomingOnly)}
+                    >
+                        <Text style={styles.filterButtonText}>
+                            {showUpcomingOnly ? "Show All" : "Upcoming Events"}
+                        </Text>
+                    </TouchableOpacity>
+                </View>
+                {isFormVisible && renderForm()}
+                {records.length === 0 ? (
+                    <View style={styles.centerContainer}>
+                        <Text style={styles.emptyText}>No records found</Text>
+                    </View>
+                ) : (
+                    <>
+                        {renderTableHeader()}
+                        {renderTableRows()}
+                    </>
+                )}
             </ScrollView>
         );
     };
 
+    const toggleForm = () => {
+        setIsFormVisible(!isFormVisible);
+    }
     return (
         <SafeAreaView style={styles.container}>
             <StatusBar barStyle="light-content" backgroundColor="#121212" />
             <View style={styles.headerContainer}>
                 <Text style={styles.header}>Excelerate</Text>
-                <Text style={styles.subHeader}>CRUD + Alerts</Text>
+                <Text style={styles.subHeader}>Excel CRUD + Alerts</Text>
             </View>
             {renderContent()}
         </SafeAreaView>
@@ -181,11 +351,22 @@ const styles = StyleSheet.create({
         fontSize: 14,
         paddingHorizontal: 4,
     },
+    actionContainer: {
+        flexDirection: 'row',
+        justifyContent: 'space-around',
+    },
+    actionButton: {
+        padding: 4,
+    },
+    actionText: {
+        fontSize: 16,
+    },
     centerContainer: {
         flex: 1,
         justifyContent: 'center',
         alignItems: 'center',
         padding: 20,
+        minHeight: 200,
     },
     loadingText: {
         marginTop: 12,
@@ -202,4 +383,36 @@ const styles = StyleSheet.create({
         color: '#aaa',
         textAlign: 'center',
     },
+    addButton: {
+        backgroundColor: '#BB86FC',
+        padding: 12,
+        borderRadius: 8,
+        margin: 16,
+        alignItems: 'center',
+    },
+    buttonText: {
+        color: '#121212',
+        fontWeight: 'bold',
+        fontSize: 16,
+    },
+    filterButton: {
+        flex: 1,
+        backgroundColor: '#333',
+        padding: 10,
+        borderRadius: 6,
+        margin: 16,
+        alignItems: 'center',
+    },
+    filterButtonActive: {
+        backgroundColor: '#BB86FC',
+    },
+    filterButtonText: {
+        color: '#fff',
+        fontWeight: 'bold',
+    },
+    buttonRow: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        marginBottom: 8,
+    }
 });

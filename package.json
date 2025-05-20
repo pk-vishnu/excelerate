@@ -10,8 +10,10 @@
     "test": "jest"
   },
   "dependencies": {
+    "@react-native-community/datetimepicker": "^8.3.0",
     "react": "19.0.0",
     "react-native": "0.79.2",
+    "react-native-date-picker": "^5.0.12",
     "react-native-fs": "^2.20.0",
     "xlsx": "^0.18.5"
   },
