@@ -54,7 +54,7 @@ export const scheduleDailyNotificationWithRecords = (records: Record[])=>{
       .join('\n');
 
     // Cancel any previous notification with this ID
-    PushNotification.cancelLocalNotifications({ id: '123' });
+    PushNotification.cancelLocalNotification({ id: '123' });
 
     const now = new Date();
     const notifDate = new Date();
