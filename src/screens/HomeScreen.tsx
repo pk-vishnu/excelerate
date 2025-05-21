@@ -7,15 +7,18 @@ import { TouchableOpacity } from 'react-native';
 import RecordForm from '../components/RecordForm';
 import { Alert } from 'react-native';
 import isUpcomingEvent from '../utils/upcomingDate';
+import { sortRecords, SortKey, SortDirection } from '../utils/sortRecords';
 
 export default function HomeScreen() {
     const [records, setRecords] = useState<Record[]>([]);
-    const [form, setForm] = useState<Partial<Record>>({ item: '', date: '', description: '' });
+    const [form, setForm] = useState<Partial<Record>>({ item: '', date: '', description: '', completed: false });
     const [editIndex, setEditIndex] = useState<number | null>(null);
     const [loading, setLoading] = useState<boolean>(true);
     const [error, setError] = useState<string | null>(null);
     const [isFormVisible, setIsFormVisible] = useState(false);
     const [showUpcomingOnly, setShowUpcomingOnly] = useState(false);
+    const [sortKey, setSortKey] = useState<SortKey>('sl_no');
+    const [sortDirection, setSortDirection] = useState<SortDirection>('asc');
 
     useEffect(() => {
         async function loadData() {
@@ -79,6 +82,18 @@ export default function HomeScreen() {
         setEditIndex(index);
     }
 
+    function handleComplete(recordId: number) {
+        const updatedRecords = records.map(record => {
+            if (record.sl_no === recordId) {
+                const toggled = { ...record, completed: !record.completed };
+                return toggled;
+            }
+            return record;
+        });
+        setRecords(updatedRecords);
+        saveExcelFile(updatedRecords, 'data.xlsx');
+    }
+
     function handleSave() {
         if (!form.item || !form.date || !form.description) {
             Alert.alert('All fields are required.');
@@ -102,6 +117,7 @@ export default function HomeScreen() {
                 item: form.item || '',
                 date: form.date || '',
                 description: form.description || '',
+                completed: false,
             });
         }
 
@@ -135,6 +151,15 @@ export default function HomeScreen() {
         setIsFormVisible(false);
     }
 
+    function handleSort(field: keyof Record) {
+        if (sortKey === field) {
+            setSortDirection(prev => (prev === 'asc' ? 'desc' : 'asc'));
+        } else {
+            setSortKey(field);
+            setSortDirection('asc');
+        }
+    }
+
     const renderForm = () => (
 
         <RecordForm
@@ -148,18 +173,42 @@ export default function HomeScreen() {
 
     const renderTableHeader = () => (
         <View style={styles.tableHeader}>
-            <Text style={[styles.headerCell, { flex: 1.5 }]}>Item</Text>
-            <Text style={[styles.headerCell, { flex: 2 }]}>Date</Text>
-            <Text style={[styles.headerCell, { flex: 3 }]}>Description</Text>
+            <TouchableOpacity
+                onPress={() => handleSort('item')}
+                style={{ flex: 1.5 }}
+            >
+                <Text style={styles.headerCell}>
+                    Item {sortKey === 'item' && (sortDirection === 'asc' ? '⬆️' : '⬇️')}
+                </Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+                onPress={() => handleSort('date')}
+                style={{ flex: 2 }}
+            >
+                <Text style={styles.headerCell}>
+                    Date {sortKey === 'date' && (sortDirection === 'asc' ? '⬆️' : '⬇️')}
+                </Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+                onPress={() => handleSort('description')}
+                style={{ flex: 3 }}
+            >
+                <Text style={styles.headerCell}>
+                    Description {sortKey === 'description' && (sortDirection === 'asc' ? '⬆️' : '⬇️')}
+                </Text>
+            </TouchableOpacity>
+
             <Text style={[styles.headerCell, { flex: 2 }]}>Actions</Text>
         </View>
     );
 
     const renderTableRows = () => {
-        const displayRecords = showUpcomingOnly
+        const filteredRecords = showUpcomingOnly
             ? records.filter(record => isUpcomingEvent(record.date))
             : records;
-
+        const displayRecords = sortRecords(filteredRecords, sortKey, sortDirection);
         if (displayRecords.length === 0) {
             return (
                 <View style={styles.centerContainer}>
@@ -176,14 +225,14 @@ export default function HomeScreen() {
             <View
                 key={item.sl_no.toString()}
                 style={[
-                    styles.tableRow,
-                    index % 2 === 0 ? styles.evenRow : styles.oddRow
+                    isUpcomingEvent(item.date) ? styles.tableRowUpcoming : styles.tableRowNormal,
+                    item.completed && { backgroundColor: '#225522' },
                 ]}
             >
                 <Text style={[styles.tableCell, { flex: 1.5 }]}>{item.item}</Text>
                 <Text style={[styles.tableCell, { flex: 2 }]}>{formatDateForDisplay(item.date)}</Text>
                 <Text style={[styles.tableCell, { flex: 3 }]}>{item.description}</Text>
-                <View style={[styles.actionContainer, { flex: 2 }]}>
+                <View style={[styles.actionContainer, { flex: 3 }]}>
                     <TouchableOpacity
                         onPress={() => handleEdit(item.sl_no)}
                         style={styles.actionButton}
@@ -197,6 +246,16 @@ export default function HomeScreen() {
                     >
                         <Text style={styles.actionText}>🗑️</Text>
                     </TouchableOpacity>
+
+                    <TouchableOpacity
+                        onPress={() => handleComplete(item.sl_no)}
+                        style={styles.actionButton}
+                    >
+                        <Text style={styles.actionText}>
+                            {item.completed ? '✅' : '⭕'}
+                        </Text>
+                    </TouchableOpacity>
+
                 </View>
             </View>
         ));
@@ -314,18 +373,20 @@ const styles = StyleSheet.create({
         fontSize: 14,
         paddingHorizontal: 4,
     },
-    tableRow: {
+    tableRowNormal: {
         flexDirection: 'row',
         paddingVertical: 12,
         paddingHorizontal: 8,
         borderBottomWidth: 1,
         borderBottomColor: '#333',
     },
-    evenRow: {
-        backgroundColor: '#1A1A1A',
-    },
-    oddRow: {
-        backgroundColor: '#222222',
+    tableRowUpcoming: {
+        flexDirection: 'row',
+        paddingVertical: 12,
+        paddingHorizontal: 8,
+        borderBottomWidth: 1,
+        borderBottomColor: '#BB86FC',
+        backgroundColor: '#542125',
     },
     tableCell: {
         color: '#E1E1E1',

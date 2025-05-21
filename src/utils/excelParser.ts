@@ -56,6 +56,7 @@ export async function parseExcelFile(filename: string): Promise<Record[]> {
       item: row.item ?? '',
       date: normalizeDate(row.date),
       description: row.description ?? '',
+      completed: row.completed ?? false,
     }));
   } catch (err) {
     console.error('Error parsing Excel:', err);
@@ -75,6 +76,7 @@ export async function saveExcelFile(data: Record[], filename: string): Promise<s
         item: row.item,
         date: dateObj instanceof Date && !isNaN(dateObj.getTime()) ? dateObj : null,
         description: row.description,
+        completed: row.completed,
       };
     });
 

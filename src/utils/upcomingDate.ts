@@ -15,7 +15,7 @@ function isUpcomingEvent(dateStr: string | null): boolean {
         twoDaysLater.setDate(today.getDate() + 3);
 
         // Check if the record date is between today and 2 days later
-        return recordDate >= today && recordDate <= twoDaysLater;
+        return recordDate <= twoDaysLater;
     } catch (error) {
         console.error("Error parsing date:", error);
         return false;
