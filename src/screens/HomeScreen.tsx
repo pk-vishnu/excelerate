@@ -8,6 +8,7 @@ import RecordForm from '../components/RecordForm';
 import { Alert } from 'react-native';
 import isUpcomingEvent from '../utils/upcomingDate';
 import { sortRecords, SortKey, SortDirection } from '../utils/sortRecords';
+import isOneMonthOld from '../utils/isOneMonth';
 
 export default function HomeScreen() {
     const [records, setRecords] = useState<Record[]>([]);
@@ -205,9 +206,14 @@ export default function HomeScreen() {
     );
 
     const renderTableRows = () => {
-        const filteredRecords = showUpcomingOnly
-            ? records.filter(record => isUpcomingEvent(record.date))
-            : records;
+        const filteredRecords = records
+            .filter(
+                record => !(record.completed === true && isOneMonthOld(record.date))
+            )
+            .filter(
+                record => showUpcomingOnly ? isUpcomingEvent(record.date) : true
+            );
+
         const displayRecords = sortRecords(filteredRecords, sortKey, sortDirection);
         if (displayRecords.length === 0) {
             return (
