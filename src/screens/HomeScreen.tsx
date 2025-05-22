@@ -84,15 +84,33 @@ export default function HomeScreen() {
     }
 
     function handleComplete(recordId: number) {
-        const updatedRecords = records.map(record => {
-            if (record.sl_no === recordId) {
-                const toggled = { ...record, completed: !record.completed };
-                return toggled;
-            }
-            return record;
-        });
-        setRecords(updatedRecords);
-        saveExcelFile(updatedRecords, 'data.xlsx');
+        Alert.alert(
+            "Confirm Complete",
+            "Are you sure you want to mark this record as completed?",
+            [
+                {
+                    text: "Cancel",
+                    style: "cancel"
+                },
+                {
+                    text: "Complete",
+                    onPress: () => {
+                        const updatedRecords = records.map(record => {
+                            if (record.sl_no === recordId) {
+                                const toggled = { ...record, completed: !record.completed };
+                                return toggled;
+                            }
+                            return record;
+                        });
+                        setRecords(updatedRecords);
+                        setSortKey('completed');
+                        setSortDirection('asc');
+                        saveExcelFile(updatedRecords, 'data.xlsx');
+                    },
+                    style: "default"
+                }
+            ]
+        )
     }
 
     function handleSave() {
@@ -211,7 +229,7 @@ export default function HomeScreen() {
                 record => !(record.completed === true && isOneMonthOld(record.date))
             )
             .filter(
-                record => showUpcomingOnly ? isUpcomingEvent(record.date) : true
+                record => showUpcomingOnly ? isUpcomingEvent(record.date) && record.completed === false : true
             );
 
         const displayRecords = sortRecords(filteredRecords, sortKey, sortDirection);
@@ -304,7 +322,7 @@ export default function HomeScreen() {
                         onPress={() => setShowUpcomingOnly(!showUpcomingOnly)}
                     >
                         <Text style={styles.filterButtonText}>
-                            {showUpcomingOnly ? "Show All" : "Upcoming Events"}
+                            {showUpcomingOnly ? "Show All" : "Overdue Tasks"}
                         </Text>
                     </TouchableOpacity>
                 </View>

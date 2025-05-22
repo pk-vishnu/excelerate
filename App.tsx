@@ -1,4 +1,3 @@
-// App.tsx
 import React, { useState } from "react";
 import { View, StyleSheet } from "react-native";
 import HomeScreen from "./src/screens/HomeScreen";
