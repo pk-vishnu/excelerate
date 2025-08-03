@@ -348,7 +348,7 @@ export default function HomeScreen() {
         <SafeAreaView style={styles.container}>
             <StatusBar barStyle="light-content" backgroundColor="#121212" />
             <View style={styles.headerContainer}>
-                <Text style={styles.header}>Kavya's Excelerate</Text>
+                <Text style={styles.header}>Excelerate</Text>
                 <Text style={styles.subHeader}>Excel CRUD + Alerts</Text>
             </View>
             {renderContent()}
