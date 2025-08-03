@@ -18,8 +18,8 @@ export default function HomeScreen() {
     const [error, setError] = useState<string | null>(null);
     const [isFormVisible, setIsFormVisible] = useState(false);
     const [showUpcomingOnly, setShowUpcomingOnly] = useState(false);
-    const [sortKey, setSortKey] = useState<SortKey>('sl_no');
-    const [sortDirection, setSortDirection] = useState<SortDirection>('asc');
+    const [sortKey, setSortKey] = useState<SortKey>('date');
+    const [sortDirection, setSortDirection] = useState<SortDirection>('desc');
 
     useEffect(() => {
         async function loadData() {
@@ -104,7 +104,7 @@ export default function HomeScreen() {
                         });
                         setRecords(updatedRecords);
                         setSortKey('completed');
-                        setSortDirection('asc');
+                        setSortDirection('desc');
                         saveExcelFile(updatedRecords, 'data.xlsx');
                     },
                     style: "default"
@@ -348,7 +348,7 @@ export default function HomeScreen() {
         <SafeAreaView style={styles.container}>
             <StatusBar barStyle="light-content" backgroundColor="#121212" />
             <View style={styles.headerContainer}>
-                <Text style={styles.header}>Excelerate</Text>
+                <Text style={styles.header}>Kavya's Excelerate</Text>
                 <Text style={styles.subHeader}>Excel CRUD + Alerts</Text>
             </View>
             {renderContent()}
